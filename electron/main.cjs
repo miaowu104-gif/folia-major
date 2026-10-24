@@ -5222,6 +5222,11 @@ function syncRemoteControlPointerInside() {
   if (remoteControlWindow && !remoteControlWindow.isDestroyed() && !remoteControlWindow.webContents.isDestroyed()) {
     remoteControlWindow.webContents.send('remote-control-pointer-inside', inside);
   }
+  if (!inside) {
+    // The card may have been dragged to the edge while the pointer held it there. The idle look is
+    // about to open the cover in that strip, so step the window right until the cover fits again.
+    bringRemoteControlCoverOnScreen(remoteControlWindow);
+  }
 }
 
 // The whole window ignores the mouse in click-through; otherwise only the part left of the card.
@@ -5247,10 +5252,14 @@ function pollRemoteControlPointer() {
 // Windows the move can be held there as it happens; elsewhere a move cannot be refused. With the
 // cover collapsed only the card in use is held, so it can reach the edge.
 function keepRemoteControlCoverOnScreen(win, event, newBounds) {
+  // The cover only needs holding while it is actually the cover: the idle look opens it once the
+  // pointer leaves, so while the pointer is in the window the strip left of the card is empty and
+  // only the card has to stay on screen — that is what lets the card reach the edge mid-drag.
+  const holdCover = remoteControlExpandCoverEnabled && !isCursorInsideRemoteControlWindow();
   const x = clampRemoteControlWindowX(
     newBounds,
     screen.getAllDisplays().map(display => display.bounds),
-    remoteControlExpandCoverEnabled,
+    holdCover,
   );
   if (x !== newBounds.x) {
     // Windows then keeps the window where this puts it, and the drag slides along the edge.
